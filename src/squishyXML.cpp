@@ -7,6 +7,7 @@
 //============================================================================
 
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <cstring>
 #include "../include/squishyXML.hpp"
@@ -280,7 +281,7 @@ bool squishyXMLDocument::getRootElement( squishyXMLNode &node ) {
 
 }
 
-void squishyXMLDocument::printDocToString( std::string &result, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl ) {
+bool squishyXMLDocument::printDocToString( std::string &result, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl ) {
 
 	result.clear();
 
@@ -322,4 +323,22 @@ void squishyXMLDocument::printDocToString( std::string &result, std::string_view
 
 	}
 
+	return !result.empty();
 }
+
+bool squishyXMLDocument::printDocToFile( std::string_view filename, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl ) {
+
+	std::string buffer;
+
+	if( !printDocToString( buffer, encoding , addFormattingSpaces, withXMLDecl ) ) return false;
+
+	std::ofstream outfile(filename.data());
+
+	if( !outfile.is_open() || !outfile.good() ) return false;
+
+	outfile << buffer;
+
+	return outfile.good();
+
+}
+

@@ -74,7 +74,8 @@ public:
 	bool setRootElement( squishyXMLNode &node );
 	bool getRootElement( squishyXMLNode &node );
 
-	void printDocToString( std::string &result, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl );
+	bool printDocToString( std::string &result, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl );
+	bool printDocToFile( std::string_view filename, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl );
 
 	xmlDocPtr ptr;
 
