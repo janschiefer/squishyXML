@@ -32,6 +32,38 @@ public:
 
 };
 
+class squishyXMLNode {
+
+public:
+	squishyXMLNode();
+	squishyXMLNode( xmlNs *n_space, std::string_view name );
+
+	~squishyXMLNode();
+
+	void setNodePointer( xmlNode *node );
+	void unlinkNode ( bool freeNode = false );
+
+	bool findSingleNodeByName( std::string_view nodeName, squishyXMLNode &result, bool searchChildren );
+
+	bool findNodesByName( std::string_view nodeName, std::vector<squishyXMLNode> &results, bool searchChildren );
+
+	bool getNodeContent( std::string &result );
+	bool getNodeProperty( std::string_view name, std::string &result );
+	bool getNodeProperties( std::unordered_map <std::string, std::string> &result );
+
+	bool setNodeContent( std::string_view content );
+	bool setNodeProperty( std::string_view key, std::string_view value );
+	bool setNodeProperties( const std::unordered_map <std::string, std::string> &properties );
+
+	bool changeNodeName ( std::string_view name );
+
+	bool addChildNode( squishyXMLNode &child );
+
+	xmlNode *ptr = NULL;
+	bool doUnlink = false;
+
+};
+
 class squishyXMLDocument {
 
 public:
@@ -39,42 +71,13 @@ public:
 	squishyXMLDocument ( std::string_view version );
 	~squishyXMLDocument();
 
-	void setRootElement( xmlNode *rootNode );
-	xmlNode *getRootElement();
+	bool setRootElement( squishyXMLNode &node );
+	bool getRootElement( squishyXMLNode &node );
 
 	void printDocToString( std::string &result, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl );
 
 	xmlDocPtr ptr;
 
 };
-
-class squishyXMLNodeUtil {
-
-public:
-	squishyXMLNodeUtil();
-	~squishyXMLNodeUtil();
-
-	static xmlNode *createNewNode( xmlNs *n_space, std::string_view name );
-	static void unlinkNode ( xmlNode *node, bool freeData = true );
-
-	static xmlNode *findSingleNodeByName( std::string_view nodeName, xmlNode *startNode );
-	static xmlNode *findSingleChildNodeByName( std::string_view nodeName, xmlNode *startNode );
-
-	static void findNodesByName( std::string_view nodeName, xmlNode *startNode, std::vector<xmlNode *>  &results );
-	static void findChildNodesByName( std::string_view nodeName, xmlNode *startNode, std::vector<xmlNode *>  &results );
-
-	static bool getNodeContent( const xmlNode *node, std::string &result );
-	static bool getNodeProperty( const xmlNode *node, std::string_view name, std::string &result );
-	static void getNodeProperties( const xmlNode *node, std::unordered_map <std::string, std::string> &result );
-
-	static void setNodeContent( xmlNode *node, std::string_view content );
-	static void changeNodeName ( xmlNode *node, std::string_view name );
-	static void setNodeProperty( xmlNode *node, std::string_view key, std::string_view value );
-	static void setNodeProperties( xmlNode *node, const std::unordered_map <std::string, std::string> &properties );
-	static bool addChildNode( xmlNode *parent, xmlNode *child );
-
-};
-
-
 
 #endif /* SQUISHYXML_HPP_ */
