@@ -60,7 +60,6 @@ public:
 	bool addChildNode( squishyXMLNode &child );
 
 	xmlNode *ptr = NULL;
-	bool doUnlink = false;
 
 };
 

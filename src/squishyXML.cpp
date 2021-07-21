@@ -36,12 +36,10 @@ squishyXMLNode::squishyXMLNode( xmlNs *n_space, std::string_view name ) {
 
 	ptr = xmlNewNode( n_space, (const unsigned char *)name.data() );
 
-	doUnlink = true;
 }
 
 squishyXMLNode::~squishyXMLNode() {
 
-	if(doUnlink) unlinkNode(true);
 
 }
 
@@ -53,14 +51,11 @@ void squishyXMLNode::unlinkNode ( bool freeNode ) {
 
 		if (freeNode) xmlFreeNode(ptr);
 		ptr = NULL;
-		doUnlink = false;
 
 	}
 }
 
 void squishyXMLNode::setNodePointer( xmlNode *node ) {
-
-	if(doUnlink) unlinkNode(true);
 
 	if(node) ptr = node;
 
@@ -190,6 +185,8 @@ bool squishyXMLNode::setNodeContent(  std::string_view content ) {
 
 	xmlChar *escapedContents = xmlEncodeEntitiesReentrant( ptr->doc, (xmlChar *)content.data());
 
+	if(escapedContents == NULL) return false;
+
 	xmlNodeSetContent ( ptr, escapedContents );
 
 	xmlFree( escapedContents );
@@ -203,7 +200,20 @@ bool squishyXMLNode::setNodeProperty( std::string_view key, std::string_view val
 
     if ( key.empty() ) return false;
 
-	xmlSetProp (ptr, (xmlChar *)key.data(), (xmlChar *) value.data() );
+	xmlChar *escapedKey= xmlEncodeEntitiesReentrant( ptr->doc, (xmlChar *)key.data());
+
+	if(escapedKey== NULL) return false;
+
+	xmlChar *escapedContents = xmlEncodeEntitiesReentrant( ptr->doc, (xmlChar *)value.data());
+
+	if(escapedContents == NULL) return false;
+
+	xmlSetProp (ptr, escapedKey, (xmlChar *) escapedContents );
+
+	xmlFree( escapedKey );
+
+	xmlFree( escapedContents );
+
 
 	return true;
 
@@ -216,11 +226,32 @@ bool squishyXMLNode::setNodeProperties( const std::unordered_map <std::string, s
 
     bool retval = false;
 
+    xmlChar *escapedKey = NULL;
+
+	xmlChar *escapedContents = NULL;
+
 	for (const auto& [key, value] : properties) {
 
 		if(!key.empty()) {
-			xmlSetProp (ptr, (xmlChar *)key.c_str(), (xmlChar *) value.c_str() );
-			retval = true;
+
+			escapedKey = xmlEncodeEntitiesReentrant( ptr->doc, (xmlChar *)key.c_str());
+
+			if(escapedKey == NULL) continue;
+
+			escapedContents = xmlEncodeEntitiesReentrant( ptr->doc, (xmlChar *)value.c_str());
+
+			if(escapedContents) {
+
+				xmlSetProp (ptr, escapedKey, escapedContents);
+
+				xmlFree( escapedContents );
+
+				retval = true;
+
+			}
+
+			xmlFree( escapedKey );
+
 		}
 
 	}
@@ -234,7 +265,13 @@ bool squishyXMLNode::changeNodeName ( std::string_view name ) {
 
     if ( name.empty() ) return false;
 
+	xmlChar *escapedName =  xmlEncodeEntitiesReentrant( ptr->doc, (xmlChar *)name.data());
+
+	if(escapedName == NULL) return false;
+
     xmlNodeSetName ( ptr, (xmlChar *)name.data() );
+
+    xmlFree(escapedName);
 
     return true;
 
