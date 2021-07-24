@@ -28,13 +28,22 @@ squishyXMLContext::squishyXMLContext() {
 
 squishyXMLContext::~squishyXMLContext() {	if(ptr) xmlFreeParserCtxt(ptr); }
 
+xmlParserCtxt *squishyXMLContext::getPointer() const {	return ptr; }
+
 squishyXMLNode::squishyXMLNode() { }
 
-squishyXMLNode::squishyXMLNode( xmlNs *n_space, std::string_view name ) {
+squishyXMLNode::squishyXMLNode( xmlNs *n_space, std::string_view nodeName, squishyXMLDocument &doc, bool isRootNode ) {
 
-    if ( name.empty() ) throw std::runtime_error( "[ERROR] Cannot create XML node without name.\n" );
+    if ( nodeName.empty() ) throw std::runtime_error( "[ERROR] Cannot create XML node without name.\n" );
 
-	ptr = xmlNewNode( n_space, (const unsigned char *)name.data() );
+	//ptr = xmlNewNode( n_space, (xmlChar *)nodeName.data() );
+
+    ptr = xmlNewDocNode( doc.getPointer(), n_space, (xmlChar *)nodeName.data(), NULL );
+
+	if( ptr == NULL ) throw std::runtime_error( "[ERROR] XML node creation failed.\n" );
+
+	if(isRootNode) xmlDocSetRootElement(doc.getPointer(), ptr );
+
 
 }
 
@@ -42,6 +51,9 @@ squishyXMLNode::~squishyXMLNode() {
 
 
 }
+
+xmlNode *squishyXMLNode::getPointer() const { return ptr; }
+
 
 void squishyXMLNode::unlinkNode ( bool freeNode ) {
 
@@ -61,7 +73,7 @@ void squishyXMLNode::setNodePointer( xmlNode *node ) {
 
 }
 
-bool squishyXMLNode::findSingleNodeByName( std::string_view nodeName, squishyXMLNode &result, bool searchChildren ) {
+bool squishyXMLNode::findSingleNodeByName( std::string_view nodeName, squishyXMLNode &result, bool searchChildren ) const {
 
 	if( ptr == NULL ) return false;
 
@@ -89,7 +101,7 @@ bool squishyXMLNode::findSingleNodeByName( std::string_view nodeName, squishyXML
 
 }
 
-bool squishyXMLNode::findNodesByName( std::string_view nodeName, std::vector<squishyXMLNode> &results, bool searchChildren ) {
+bool squishyXMLNode::findNodesByName( std::string_view nodeName, std::vector<squishyXMLNode> &results, bool searchChildren ) const {
 
 	if( ptr == NULL ) return false;
 
@@ -116,7 +128,7 @@ bool squishyXMLNode::findNodesByName( std::string_view nodeName, std::vector<squ
 	return !results.empty();
 }
 
-bool squishyXMLNode::getNodeContent( std::string &result ) {
+bool squishyXMLNode::getNodeContent( std::string &result ) const{
 
 	result.clear();
 
@@ -137,7 +149,7 @@ bool squishyXMLNode::getNodeContent( std::string &result ) {
 
 }
 
-bool squishyXMLNode::getNodeProperty( std::string_view name, std::string &result ) {
+bool squishyXMLNode::getNodeProperty( std::string_view name, std::string &result ) const {
 
 	result.clear();
 
@@ -158,7 +170,7 @@ bool squishyXMLNode::getNodeProperty( std::string_view name, std::string &result
 
 }
 
-bool squishyXMLNode::getNodeProperties( std::unordered_map <std::string, std::string> &result ) {
+bool squishyXMLNode::getNodeProperties( std::unordered_map <std::string, std::string> &result ) const {
 
 	result.clear();
 
@@ -277,48 +289,42 @@ bool squishyXMLNode::changeNodeName ( std::string_view name ) {
 
 }
 
-bool squishyXMLNode::addChildNode(  squishyXMLNode &child ) {
+bool squishyXMLNode::addChildNode( squishyXMLNode &child  ) {
 
 	return ( xmlAddChildList( ptr, child.ptr ) != NULL );
 
 }
 
+bool squishyXMLNode::setToDocRootElement( squishyXMLDocument &doc ) {
+
+    if ( ptr ) return false;
+
+    setNodePointer( xmlDocGetRootElement( doc.getPointer() ) );
+
+	return ( (ptr == NULL) ? false : true );
+}
+
+
 squishyXMLDocument::squishyXMLDocument( squishyXMLContext &context, std::string_view filename, std::string_view encoding, int options ) {
 
-	ptr = xmlCtxtReadFile(context.ptr, std::string(filename).c_str() ,std::string(encoding).c_str(), options);
+	ptr = xmlCtxtReadFile(context.getPointer(), std::string(filename).c_str() ,std::string(encoding).c_str(), options);
 
 }
 
-squishyXMLDocument::squishyXMLDocument( std::string_view version ) {
+squishyXMLDocument::squishyXMLDocument ( std::string_view version ) {
 
-	if(!version.empty()) ptr = xmlNewDoc( (const xmlChar *) version.data());
-	else ptr = xmlNewDoc( NULL );
-
-}
-
-squishyXMLDocument::~squishyXMLDocument() {	if( ptr ) xmlFreeDoc(ptr); }
-
-bool squishyXMLDocument::setRootElement( squishyXMLNode &node ) {
-
-    if ( ptr == NULL ) return false;
-
-	xmlDocSetRootElement(ptr, node.ptr );
-
-	return true;
+	ptr = xmlNewDoc( (xmlChar *) version.data() );
 
 }
 
-bool squishyXMLDocument::getRootElement( squishyXMLNode &node ) {
-
-    if ( ptr == NULL ) return false;
-
-    node.setNodePointer( xmlDocGetRootElement( ptr ) );
-
-	return true;
-
+squishyXMLDocument::~squishyXMLDocument() {
+	if(ptr) xmlFreeDoc(ptr);
 }
 
-bool squishyXMLDocument::printDocToString( std::string &result, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl ) {
+xmlDoc *squishyXMLDocument::getPointer() const { return ptr; }
+
+
+bool squishyXMLDocument::printDocToString( std::string &result, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl ) const {
 
 	result.clear();
 
@@ -342,12 +348,12 @@ bool squishyXMLDocument::printDocToString( std::string &result, std::string_view
 		else {
 			xmlOutputBuffer *outbuf = xmlAllocOutputBuffer(NULL);
 
-			squishyXMLNode rootNode;
+			xmlNode *rootNode;
 
-			getRootElement( rootNode );
+			rootNode = xmlDocGetRootElement( ptr );
 
-			if(outbuf && rootNode.ptr) {
-				xmlNodeDumpOutput( outbuf, ptr, rootNode.ptr, 0, format, xmlEnc.data());
+			if(outbuf && rootNode) {
+				xmlNodeDumpOutput( outbuf, ptr, rootNode, 0, format, xmlEnc.data());
 				xmlOutputBufferFlush(outbuf);
 
 				if( xmlOutputBufferGetSize(outbuf) > 0 ) result.assign( (char *)xmlOutputBufferGetContent(outbuf) );
@@ -363,7 +369,7 @@ bool squishyXMLDocument::printDocToString( std::string &result, std::string_view
 	return !result.empty();
 }
 
-bool squishyXMLDocument::printDocToFile( std::string_view filename, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl ) {
+bool squishyXMLDocument::printDocToFile( std::string_view filename, std::string_view encoding ,bool addFormattingSpaces, bool withXMLDecl ) const {
 
 	std::string buffer;
 
@@ -378,4 +384,5 @@ bool squishyXMLDocument::printDocToFile( std::string_view filename, std::string_
 	return outfile.good();
 
 }
+
 
